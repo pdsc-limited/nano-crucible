@@ -35,8 +35,12 @@ def _build_file_display(af_list, link_map, dsid):
             name     = storage_path[len(prefix_sp):]
             ingested = True
         else:
-            staging  = f.get('filename') or ''
-            name     = _os.path.basename(staging) or mfid
+            logical_path = f.get('filename') or ''
+            # Cataloged files can retain a relative logical path distinct from
+            # their absolute storage location.  GCS keeps its established
+            # basename fallback while other backends show that logical path.
+            name = (logical_path if backend != 'gcs'
+                    else _os.path.basename(logical_path)) or mfid
             ingested = False
         result.append({
             'mfid':     mfid,

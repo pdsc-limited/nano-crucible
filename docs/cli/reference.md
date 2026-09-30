@@ -21,7 +21,7 @@ Running `crucible` without a command starts the interactive shell. See the [CLI 
 | Command | Description |
 |---|---|
 | `dataset list` | List assigned or shared datasets by project ID or canonical project MFID, with instrument, metadata, and name-pattern filters |
-| `dataset get MFID` | Show a dataset, its files, and linked resources |
+| `dataset get MFID` | Show a dataset, its files (including non-GCS logical paths), and linked resources |
 | `dataset create [--input FILE ...]` | Create a dataset, optionally uploading or cataloging files |
 | `dataset update MFID` | Update model fields or scientific metadata |
 | `dataset edit MFID` | Edit dataset fields interactively |
@@ -181,12 +181,12 @@ Usernames are normalized to lowercase and must be 3 to 24 characters, start with
 
 ## File commands
 
-File commands operate on individual file MFIDs. Dataset-scoped file operations remain available under `dataset`.
+File commands operate on individual file MFIDs. Dataset-scoped file operations remain available under `dataset`. Cataloged non-GCS files display their relative logical filename while `file get` retains the absolute storage location separately.
 
 | Command | Description |
 |---|---|
-| `file list` | List files globally or within a dataset |
-| `file get ID` | Show file metadata and a download link when available |
+| `file list` | List files globally or within a dataset, retaining non-GCS logical paths |
+| `file get ID` | Show file metadata, its storage location, and a download link when available |
 | `file download ID` | Download one file |
 | `file ingestion ID` | Show ingestion requests for a file |
 | `file request-ingestion ID` | Request or repeat ingestion for a cataloged file |
