@@ -8,6 +8,7 @@ import pytest
 from crucible.cli import access_group as access_group_cli
 from crucible.cli import dataset as dataset_cli
 from crucible.cli import deletion as deletion_cli
+from crucible.cli import file as file_cli
 from crucible.cli import helpers
 from crucible.cli import instrument as instrument_cli
 from crucible.cli import get as get_cli
@@ -191,6 +192,64 @@ def test_navigation_and_identifier_styles_distinguish_clickability(monkeypatch):
     assert '\033[4m' in linked
     assert '\033]8;;https://example.org/project\007' in linked
     assert identifier == '\033[36mproject-one\033[0m'
+
+
+def test_dataset_and_file_display_preserve_non_gcs_logical_paths(monkeypatch, capsys):
+    logical_path = 'ensemble/000/PARS.out'
+    storage_path = '/global/cfs/cdirs/project/ensemble/000/PARS.out'
+    file_record = {
+        'mfid': 'file-1',
+        'filename': logical_path,
+        'storage_path': storage_path,
+        'storage_backend': 'globus',
+        'size': 12,
+    }
+
+    dataset_cli._show_dataset(
+        {'unique_id': MFID, 'dataset_name': 'Dataset'},
+        SimpleNamespace(),
+        prefetched={'keywords': [], 'af_list': [file_record], 'link_map': {}},
+    )
+    assert logical_path in capsys.readouterr().out
+
+    client = SimpleNamespace(files=SimpleNamespace(list=MagicMock(return_value=[file_record])))
+    monkeypatch.setattr('crucible.client.CrucibleClient', lambda: client)
+    file_cli._execute_list(SimpleNamespace(dataset=None, limit=100, sha256=None))
+    assert logical_path in capsys.readouterr().out
+
+    client.files.get = MagicMock(return_value=file_record)
+    file_cli._execute_get(SimpleNamespace(file_id='file-1'))
+    output = capsys.readouterr().out
+    assert logical_path in output
+    assert storage_path in output
+
+
+def test_gcs_file_display_keeps_storage_path_and_pending_behavior():
+    files = [
+        {
+            'mfid': 'ingested-file',
+            'filename': 'ignored/staging-name.dat',
+            'storage_path': f'mf-storage-prod/{MFID}/nested/result.dat',
+            'storage_backend': 'gcs',
+        },
+        {
+            'mfid': 'pending-file',
+            'filename': 'nested/staging-name.dat',
+            'storage_backend': 'gcs',
+        },
+    ]
+
+    displayed = dataset_cli._build_file_display(
+        files, {'ingested-file': 'https://example.org/download'}, MFID)
+
+    assert displayed[0]['name'] == 'nested/result.dat'
+    assert displayed[0]['url'] == 'https://example.org/download'
+    assert displayed[0]['ingested'] is True
+    assert displayed[1]['name'] == 'staging-name.dat'
+    assert displayed[1]['ingested'] is False
+    assert 'pending ingestion' in dataset_cli._format_file_label(displayed[1])
+    assert file_cli._bare_name(files[0]) == 'nested/result.dat'
+    assert file_cli._bare_name(files[1]) == 'staging-name.dat'
 
 
 def test_dataset_file_labels_reserve_cyan_for_download_links(monkeypatch):

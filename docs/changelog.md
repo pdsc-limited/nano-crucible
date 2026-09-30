@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Fixed
+
+- Dataset and file CLI displays retain relative logical paths for cataloged non-GCS files while file details continue to show their storage locations.
+
 ## 3.2.1
 
 ### Added

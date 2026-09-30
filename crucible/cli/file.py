@@ -16,15 +16,17 @@ logger = logging.getLogger(__name__)
 
 
 def _bare_name(file_record: dict) -> str:
-    """Extract display filename from a file record."""
+    """Extract the logical display name from a file record."""
     sp = file_record.get('storage_path') or ''
     if sp.startswith('mf-storage-prod/'):
         # strip mf-storage-prod/{dsid}/
         after_bucket = sp[len('mf-storage-prod/'):]
         _, _, name = after_bucket.partition('/')
         return name or after_bucket
-    staging = file_record.get('filename') or ''
-    return os.path.basename(staging) or file_record.get('mfid', '')
+    logical_path = file_record.get('filename') or ''
+    if (file_record.get('storage_backend') or 'gcs') != 'gcs':
+        return logical_path or file_record.get('mfid', '')
+    return os.path.basename(logical_path) or file_record.get('mfid', '')
 
 
 def _status_label(file_record: dict) -> str:
