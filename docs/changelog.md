@@ -46,6 +46,7 @@
 
 ### Fixed
 
+- `client.projects.get(project_id=...)` now returns exact project collection results when the API omits `unique_id`.
 - `crucible file delete` now requires interactive confirmation or an explicit `--yes` before permanently deleting a file.
 - Dataset file guidance now documents the API v3 record-first workflow, recursive uploads, additions, deletion-based replacement, and re-uploading.
 - Documentation navigation tabs now remain visible while scrolling using MkDocs Material's native sticky-tabs behavior.

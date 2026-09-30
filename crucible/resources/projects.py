@@ -14,8 +14,9 @@ from ..constants import DEFAULT_LIMIT, PROJECT_MEMBER_ROLES
 from ..models import Project, ProjectMember
 from ..utils.deprecation import _deprecated_parameter
 from ..utils.identifiers import (
+    IdentifierIntegrityError,
+    IdentifierNotFoundError,
     classify_slug_reference,
-    collapse_exact_lookup,
     is_mfid,
     require_canonical_identifier,
     validate_slug,
@@ -33,6 +34,28 @@ def _build_project_from_args(project_id, organization, project_lead_orcid):
     }
 
 
+def _collapse_project_id_lookup(payload: Dict, project_id: str) -> Dict:
+    """Return one exact project-ID collection result without inventing an MFID."""
+    if not isinstance(payload, dict) or not isinstance(payload.get('items'), list):
+        raise IdentifierIntegrityError(
+            "Exact project lookup returned an invalid collection response."
+        )
+
+    items = payload['items']
+    total = payload.get('total', len(items))
+    if total == 0 and not items:
+        raise IdentifierNotFoundError(f"Project not found: {project_id}")
+    if total != 1 or len(items) != 1:
+        raise IdentifierIntegrityError(
+            f"Exact project lookup for '{project_id}' returned {total} matches."
+        )
+    if not isinstance(items[0], dict) or items[0].get('project_id') != project_id:
+        raise IdentifierIntegrityError(
+            f"Exact project lookup for '{project_id}' returned a different project_id."
+        )
+    return items[0]
+
+
 class ProjectOperations(OwnershipMixin, AccessControlMixin, BaseResource):
     """Project-related API operations.
 
@@ -46,7 +69,9 @@ class ProjectOperations(OwnershipMixin, AccessControlMixin, BaseResource):
             project_mfid: Optional[str] = None) -> Dict:
         """Get a project by canonical MFID or human-readable project slug.
 
-        The response always includes project_id, organization, status, title.
+        Project-ID lookups identify the exact response by ``project_id``. Their
+        collection response may omit ``unique_id``; canonical MFID lookups retain
+        ``unique_id`` when supplied by the single-resource route.
 
         The ``lead`` field is a public-safe user record containing canonical
         identity, username, and name, but never email.
@@ -122,7 +147,7 @@ class ProjectOperations(OwnershipMixin, AccessControlMixin, BaseResource):
         if include_members:
             params['include_members'] = True
         raw = self._request('get', '/projects', params=params)
-        return collapse_exact_lookup(raw, 'project', project_id)
+        return _collapse_project_id_lookup(raw, project_id)
 
     def list(self, orcid: Optional[str] = None, include_metadata: bool = False,
              limit: int = DEFAULT_LIMIT, offset: int = 0,
