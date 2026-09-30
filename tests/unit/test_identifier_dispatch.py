@@ -125,6 +125,33 @@ class TestProjectDispatch:
         )
         assert result['unique_id'] == MFID
 
+    def test_slug_returns_project_id_result_without_unique_id(self):
+        ops = make_ops(ProjectOperations)
+        project = {'project_id': 'example', 'title': 'Example project'}
+        ops._request = MagicMock(return_value={'total': 1, 'items': [project]})
+
+        assert ops.get(project_id='example') == project
+
+    def test_slug_lookup_with_no_matches_raises_not_found(self):
+        ops = make_ops(ProjectOperations)
+        ops._request = MagicMock(return_value={'total': 0, 'items': []})
+
+        with pytest.raises(IdentifierNotFoundError, match='Project not found: missing'):
+            ops.get(project_id='missing')
+
+    def test_slug_lookup_with_multiple_matches_raises_integrity_error(self):
+        ops = make_ops(ProjectOperations)
+        ops._request = MagicMock(return_value={
+            'total': 2,
+            'items': [
+                {'project_id': 'duplicate'},
+                {'project_id': 'duplicate'},
+            ],
+        })
+
+        with pytest.raises(IdentifierIntegrityError, match="returned 2 matches"):
+            ops.get(project_id='duplicate')
+
     def test_explicit_slug_handles_mfid_shaped_legacy_value(self):
         ops = make_ops(ProjectOperations)
         ops._request = MagicMock(return_value={
